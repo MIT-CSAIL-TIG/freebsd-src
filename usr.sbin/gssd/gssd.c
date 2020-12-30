@@ -40,9 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <dirent.h>
 #include <err.h>
 #include <errno.h>
-#ifndef WITHOUT_KERBEROS
 #include <krb5.h>
-#endif
 #include <pwd.h>
 #include <signal.h>
 #include <stdarg.h>
@@ -51,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 #include <gssapi/gssapi.h>
+#include <gssapi/gssapi_ext.h>
 #include <rpc/rpc.h>
 #include <rpc/rpc_com.h>
 
@@ -498,7 +497,7 @@ gssd_init_sec_context_1_svc(init_sec_context_args *argp, init_sec_context_res *r
 				    (unsigned int)maj_stat, (int)min_stat);
 		}
 		if (cred != GSS_C_NO_CREDENTIAL) {
-			key_enctype = ETYPE_DES_CBC_CRC;
+			key_enctype = ENCTYPE_AES256_CTS_HMAC_SHA1_96;
 			enctype[0] = (key_enctype >> 24) & 0xff;
 			enctype[1] = (key_enctype >> 16) & 0xff;
 			enctype[2] = (key_enctype >> 8) & 0xff;
@@ -1210,8 +1209,10 @@ gssd_get_cc_from_keytab(const char *name)
 	if (ret == 0)
 		ret = krb5_cc_initialize(context, ccache, principal);
 	if (ret == 0) {
+/*
 		krb5_get_init_creds_opt_set_default_flags(context, "gssd",
 		    krb5_principal_get_realm(context, principal), opt);
+*/
 		kt_ret = ret = krb5_kt_default(context, &kt);
 	}
 	if (ret == 0)

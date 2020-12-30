@@ -2571,13 +2571,15 @@ procstat_getkstack_sysctl(pid_t pid, int *cntp)
 	}
 	if (error == -1)
 		return (NULL);
+	if (len < SIZE_T_MAX / 2)
+		len *= 2;		/* allow for rapid thread creation */
 	kkstp = malloc(len);
 	if (kkstp == NULL) {
 		warn("malloc(%zu)", len);
 		return (NULL);
 	}
 	if (sysctl(name, nitems(name), kkstp, &len, NULL, 0) == -1) {
-		warn("sysctl: kern.proc.pid: %d", pid);
+		warn("sysctl: kern.proc.kstack: %d", pid);
 		free(kkstp);
 		return (NULL);
 	}
