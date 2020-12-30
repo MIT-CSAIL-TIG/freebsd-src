@@ -14,6 +14,7 @@ PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin
 0	*	*	*	*	root	newsyslog
 #
 # Perform daily/weekly/monthly maintenance.
+0	*	*	*	*	root	periodic hourly
 1	3	*	*	*	root	periodic daily
 15	4	*	*	6	root	periodic weekly
 30	5	1	*	*	root	periodic monthly

@@ -3,7 +3,7 @@
 # $FreeBSD$
 #
 # PROVIDE: netwait
-# REQUIRE: devd ipfw pf routing
+# REQUIRE: devd ipfw pf routing bridge
 # KEYWORD: nojail
 #
 # The netwait script helps handle two situations:

@@ -351,6 +351,9 @@ nss_configure(void)
 	path = getenv("NSSWITCH_CONF");
 	if (path == NULL)
 #endif
+	if (getenv("NSSWITCH_ALTERNATE") != NULL)
+		path = "/etc/nsswitch-alt.conf";
+	else
 		path = _PATH_NS_CONF;
 	if (stat(path, &statbuf) != 0)
 		return (0);

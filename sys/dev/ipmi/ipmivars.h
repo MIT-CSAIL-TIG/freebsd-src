@@ -223,7 +223,9 @@ struct ipmi_ipmb {
 	((sc)->ipmi_io_res[1] != NULL ? OUTB_MULTIPLE(sc, x, value) :	\
 	    OUTB_SINGLE(sc, x, value))
 
-#define MAX_TIMEOUT 6 * hz
+/* The IPMI 2.0 specification recommends a five-second timeout. */
+/* Even that wasn't enough.  Try ten seconds. */
+#define MAX_TIMEOUT (10 * hz)
 
 int	ipmi_attach(device_t);
 int	ipmi_detach(device_t);
