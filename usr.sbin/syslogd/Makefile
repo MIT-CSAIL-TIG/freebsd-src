@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
-# $FreeBSD$
+# $FreeBSD: head/usr.sbin/syslogd/Makefile 338319 2018-08-25 20:19:16Z brd $
 
 .include <src.opts.mk>
 
