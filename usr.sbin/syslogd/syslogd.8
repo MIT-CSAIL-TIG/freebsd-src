@@ -26,9 +26,9 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)syslogd.8	8.1 (Berkeley) 6/6/93
-.\" $FreeBSD$
+.\" $FreeBSD: head/usr.sbin/syslogd/syslogd.8 335862 2018-07-02 11:02:27Z ed $
 .\"
-.Dd July 2, 2018
+.Dd June 20, 2020
 .Dt SYSLOGD 8
 .Os
 .Sh NAME
@@ -45,6 +45,7 @@
 .Op Fl O Ar format
 .Op Fl P Ar pid_file
 .Op Fl p Ar log_socket
+.Op Fl r Ar format
 .Op Fl S Ar logpriv_socket
 .Sh DESCRIPTION
 The
@@ -260,8 +261,12 @@ This option inherits
 .Fl s .
 .It Fl n
 Disable DNS query for every request.
-.It Fl O Ar format
-Select the output format of generated log messages.
+.It Fl O Ar format , Fl r Ar format
+Select the output format of generated log messages
+.Pq Fl O ,
+or just the format of log messages sent over the network to a remote
+log server
+.Pq Fl r .
 The values
 .Ar bsd
 and

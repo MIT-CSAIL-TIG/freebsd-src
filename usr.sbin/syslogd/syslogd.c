@@ -69,7 +69,7 @@ static char sccsid[] = "@(#)syslogd.c	8.3 (Berkeley) 4/4/94";
 #endif /* not lint */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: head/usr.sbin/syslogd/syslogd.c 368529 2020-12-10 23:23:42Z jmg $");
 
 /*
  *  syslogd -- log system messages
@@ -137,6 +137,7 @@ __FBSDID("$FreeBSD$");
 #include <paths.h>
 #include <signal.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -188,7 +189,10 @@ struct peer {
 static STAILQ_HEAD(, peer) pqueue = STAILQ_HEAD_INITIALIZER(pqueue);
 
 struct socklist {
-	struct sockaddr_storage	sl_ss;
+	struct addrinfo		sl_ai;
+#define	sl_sa		sl_ai.ai_addr
+#define	sl_salen	sl_ai.ai_addrlen
+#define	sl_family	sl_ai.ai_family
 	int			sl_socket;
 	struct peer		*sl_peer;
 	int			(*sl_recv)(struct socklist *);
@@ -203,6 +207,7 @@ static STAILQ_HEAD(, socklist) shead = STAILQ_HEAD_INITIALIZER(shead);
 #define	IGN_CONS	0x001	/* don't print on console */
 #define	SYNC_FILE	0x002	/* do fsync on file after printing */
 #define	MARK		0x008	/* this message is a mark */
+#define	ISKERNEL	0x010	/* kernel generated message */
 
 /* Timestamps of log entries. */
 struct logtime {
@@ -359,6 +364,10 @@ static int repeatinterval[] = { 30, 120, 600 };	/* # of secs before flush */
 #define F_WALL		6		/* everyone logged on */
 #define F_PIPE		7		/* pipe to program */
 
+/* DEFAULT_FORMAT must be zero for correct initialization of statics */
+enum	log_format { DEFAULT_FORMAT = 0, RFC3164, RFC5424 };
+#define	DEFAULT_FORMAT_IS	RFC3164
+
 static const char *TypeNames[] = {
 	"UNUSED",	"FILE",		"TTY",		"CONSOLE",
 	"FORW",		"USERS",	"WALL",		"PIPE"
@@ -400,8 +409,15 @@ static int	LogFacPri;	/* Put facility and priority in log message: */
 static int	KeepKernFac;	/* Keep remotely logged kernel facility */
 static int	needdofsync = 0; /* Are any file(s) waiting to be fsynced? */
 static struct pidfh *pfh;
-static int	sigpipe[2];	/* Pipe to catch a signal during select(). */
-static bool	RFC3164OutputFormat = true; /* Use legacy format by default. */
+static int	sigpipe[2];	/* Pipe to catch a signal during select() */
+
+/*
+ * Formats to write output in.  NetworkFormat controls logs sent to
+ * remote syslog servers; when unset, it defaults to the same as
+ * OutputFormat.  OutputFormat defaults to RFC3164 format for backwards
+ * compatibility.
+ */
+static enum log_format NetworkFormat, OutputFormat;
 
 static volatile sig_atomic_t MarkSet, WantDie, WantInitialize, WantReapchild;
 
@@ -410,7 +426,7 @@ struct iovlist;
 static int	allowaddr(char *);
 static int	addfile(struct filed *);
 static int	addpeer(struct peer *);
-static int	addsock(struct sockaddr *, socklen_t, struct socklist *);
+static int	addsock(struct addrinfo *, struct socklist *);
 static struct filed *cfline(const char *, const char *, const char *,
     const char *);
 static const char *cvthname(struct sockaddr *);
@@ -464,9 +480,9 @@ close_filed(struct filed *f)
 
 	switch (f->f_type) {
 	case F_FORW:
-		if (f->f_un.f_forw.f_addr) {
-			freeaddrinfo(f->f_un.f_forw.f_addr);
-			f->f_un.f_forw.f_addr = NULL;
+		if (f->fu_forw_addr != NULL) {
+			freeaddrinfo(f->fu_forw_addr);
+			f->fu_forw_addr = NULL;
 		}
 		/* FALLTHROUGH */
 
@@ -512,16 +528,23 @@ addpeer(struct peer *pe0)
 }
 
 static int
-addsock(struct sockaddr *sa, socklen_t sa_len, struct socklist *sl0)
+addsock(struct addrinfo *ai, struct socklist *sl0)
 {
 	struct socklist *sl;
 
-	sl = calloc(1, sizeof(*sl));
+	/* Copy *ai->ai_addr to the tail of struct socklist if any. */
+	sl = calloc(1, sizeof(*sl) + ((ai != NULL) ? ai->ai_addrlen : 0));
 	if (sl == NULL)
 		err(1, "malloc failed");
 	*sl = *sl0;
-	if (sa != NULL && sa_len > 0)
-		memcpy(&sl->sl_ss, sa, sa_len);
+	if (ai != NULL) {
+		memcpy(&sl->sl_ai, ai, sizeof(*ai));
+		if (ai->ai_addrlen > 0) {
+			memcpy((sl + 1), ai->ai_addr, ai->ai_addrlen);
+			sl->sl_sa = (struct sockaddr *)(sl + 1);
+		} else
+			sl->sl_sa = NULL;
+	}
 	STAILQ_INSERT_TAIL(&shead, sl, next);
 
 	return (0);
@@ -541,7 +564,7 @@ main(int argc, char *argv[])
 	if (madvise(NULL, 0, MADV_PROTECT) != 0)
 		dprintf("madvise() failed: %s\n", strerror(errno));
 
-	while ((ch = getopt(argc, argv, "468Aa:b:cCdf:FHkl:m:nNoO:p:P:sS:Tuv"))
+	while ((ch = getopt(argc, argv, "468Aa:b:cCdf:FHkl:m:nNoO:p:P:r:sS:Tuv"))
 	    != -1)
 		switch (ch) {
 #ifdef INET
@@ -667,10 +690,10 @@ main(int argc, char *argv[])
 		case 'O':
 			if (strcmp(optarg, "bsd") == 0 ||
 			    strcmp(optarg, "rfc3164") == 0)
-				RFC3164OutputFormat = true;
+				OutputFormat = RFC3164;
 			else if (strcmp(optarg, "syslog") == 0 ||
 			    strcmp(optarg, "rfc5424") == 0)
-				RFC3164OutputFormat = false;
+				OutputFormat = RFC5424;
 			else
 				usage();
 			break;
@@ -679,6 +702,16 @@ main(int argc, char *argv[])
 			break;
 		case 'P':		/* path for alt. PID */
 			PidFile = optarg;
+			break;
+		case 'r':
+			if (strcmp(optarg, "bsd") == 0 ||
+			    strcmp(optarg, "rfc3164") == 0)
+				NetworkFormat = RFC3164;
+			else if (strcmp(optarg, "syslog") == 0 ||
+			    strcmp(optarg, "rfc5424") == 0)
+				NetworkFormat = RFC5424;
+			else
+				usage();
 			break;
 		case 's':		/* no network mode */
 			SecureMode++;
@@ -703,7 +736,7 @@ main(int argc, char *argv[])
 	if (s < 0) {
 		err(1, "cannot open a pipe for signals");
 	} else {
-		addsock(NULL, 0, &(struct socklist){
+		addsock(NULL, &(struct socklist){
 		    .sl_socket = sigpipe[0],
 		    .sl_recv = socklist_recv_signal
 		});
@@ -714,7 +747,7 @@ main(int argc, char *argv[])
 	if (s < 0) {
 		dprintf("can't open %s (%d)\n", _PATH_KLOG, errno);
 	} else {
-		addsock(NULL, 0, &(struct socklist){
+		addsock(NULL, &(struct socklist){
 			.sl_socket = s,
 			.sl_recv = socklist_recv_file,
 		});
@@ -755,6 +788,12 @@ main(int argc, char *argv[])
 		}
 	} else if (Debug)
 		setlinebuf(stdout);
+
+	/* Explicitly set formats which have been defaulted to the defaults */
+	if (OutputFormat == DEFAULT_FORMAT)
+		OutputFormat = DEFAULT_FORMAT_IS;
+	if (NetworkFormat == DEFAULT_FORMAT)
+		NetworkFormat = OutputFormat;
 
 	consfile.f_type = F_CONSOLE;
 	(void)strlcpy(consfile.fu_fname, ctty + sizeof _PATH_DEV - 1,
@@ -886,7 +925,7 @@ socklist_recv_sock(struct socklist *sl)
 	}
 	/* Received valid data. */
 	line[len] = '\0';
-	if (sl->sl_ss.ss_family == AF_LOCAL)
+	if (sl->sl_sa != NULL && sl->sl_family == AF_LOCAL)
 		hname = LocalHostName;
 	else {
 		hname = cvthname(sa);
@@ -938,7 +977,7 @@ usage(void)
 		"               [-b bind_address] [-f config_file]\n"
 		"               [-l [mode:]path] [-m mark_interval]\n"
 		"               [-O format] [-P pid_file] [-p log_socket]\n"
-		"               [-S logpriv_socket]\n");
+		"               [-r format] [-S logpriv_socket]\n");
 	exit(1);
 }
 
@@ -1141,19 +1180,19 @@ parsemsg_rfc5424(const char *from, int pri, char *msg)
 }
 
 /*
- * Trims the application name ("TAG" in RFC 3164 terminology) and
- * process ID from a message if present.
+ * Returns the length of the application name ("TAG" in RFC 3164
+ * terminology) and process ID from a message if present.
  */
 static void
-parsemsg_rfc3164_app_name_procid(char **msg, const char **app_name,
-    const char **procid) {
-	char *m, *app_name_begin, *procid_begin;
+parsemsg_rfc3164_get_app_name_procid(const char *msg, size_t *app_name_length_p,
+    ptrdiff_t *procid_begin_offset_p, size_t *procid_length_p)
+{
+	const char *m, *procid_begin;
 	size_t app_name_length, procid_length;
 
-	m = *msg;
+	m = msg;
 
 	/* Application name. */
-	app_name_begin = m;
 	app_name_length = strspn(m,
 	    "abcdefghijklmnopqrstuvwxyz"
 	    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -1181,12 +1220,52 @@ parsemsg_rfc3164_app_name_procid(char **msg, const char **app_name,
 	if (m[0] != ':' || m[1] != ' ')
 		goto bad;
 
+	*app_name_length_p = app_name_length;
+	if (procid_begin_offset_p != NULL)
+		*procid_begin_offset_p =
+		    procid_begin == NULL ? 0 : procid_begin - msg;
+	if (procid_length_p != NULL)
+		*procid_length_p = procid_length;
+	return;
+bad:
+	*app_name_length_p = 0;
+	if (procid_begin_offset_p != NULL)
+		*procid_begin_offset_p = 0;
+	if (procid_length_p != NULL)
+		*procid_length_p = 0;
+}
+
+/*
+ * Trims the application name ("TAG" in RFC 3164 terminology) and
+ * process ID from a message if present.
+ */
+static void
+parsemsg_rfc3164_app_name_procid(char **msg, const char **app_name,
+    const char **procid)
+{
+	char *m, *app_name_begin, *procid_begin;
+	size_t app_name_length, procid_length;
+	ptrdiff_t procid_begin_offset;
+
+	m = *msg;
+	app_name_begin = m;
+
+	parsemsg_rfc3164_get_app_name_procid(app_name_begin, &app_name_length,
+	    &procid_begin_offset, &procid_length);
+	if (app_name_length == 0)
+		goto bad;
+	procid_begin = procid_begin_offset == 0 ? NULL :
+	    app_name_begin + procid_begin_offset;
+
 	/* Split strings from input. */
 	app_name_begin[app_name_length] = '\0';
-	if (procid_begin != 0)
+	m += app_name_length + 1;
+	if (procid_begin != NULL) {
 		procid_begin[procid_length] = '\0';
+		m += procid_length + 2;
+	}
 
-	*msg = m + 2;
+	*msg = m + 1;
 	*app_name = app_name_begin;
 	*procid = procid_begin;
 	return;
@@ -1391,7 +1470,7 @@ printsys(char *msg)
 	long n;
 	int flags, isprintf, pri;
 
-	flags = SYNC_FILE;	/* fsync after write */
+	flags = ISKERNEL | SYNC_FILE;	/* fsync after write */
 	p = msg;
 	pri = DEFSPRI;
 	isprintf = 1;
@@ -1541,7 +1620,7 @@ logmsg(int pri, const struct logtime *timestamp, const char *hostname,
 	struct filed *f;
 	size_t savedlen;
 	int fac, prilev;
-	char saved[MAXSVLINE];
+	char saved[MAXSVLINE], kernel_app_name[100];
 
 	dprintf("logmsg: pri %o, flags %x, from %s, msg %s\n",
 	    pri, flags, hostname, msg);
@@ -1565,6 +1644,23 @@ logmsg(int pri, const struct logtime *timestamp, const char *hostname,
 		return;
 
 	prilev = LOG_PRI(pri);
+
+	/*
+	 * Lookup kernel app name from log prefix if present.
+	 * This is only used for local program specification matching.
+	 */
+	if (flags & ISKERNEL) {
+		size_t kernel_app_name_length;
+
+		parsemsg_rfc3164_get_app_name_procid(msg,
+		    &kernel_app_name_length, NULL, NULL);
+		if (kernel_app_name_length != 0) {
+			strlcpy(kernel_app_name, msg,
+			    MIN(sizeof(kernel_app_name),
+			    kernel_app_name_length + 1));
+		} else
+			kernel_app_name[0] = '\0';
+	}
 
 	/* log the message to the particular outputs */
 	if (!Initialized) {
@@ -1612,7 +1708,10 @@ logmsg(int pri, const struct logtime *timestamp, const char *hostname,
 			continue;
 
 		/* skip messages with the incorrect program name */
-		if (skip_message(app_name == NULL ? "" : app_name,
+		if (flags & ISKERNEL && kernel_app_name[0] != '\0') {
+			if (skip_message(kernel_app_name, f->f_program, 1))
+				continue;
+		} else if (skip_message(app_name == NULL ? "" : app_name,
 		    f->f_program, 1))
 			continue;
 
@@ -1770,7 +1869,7 @@ fprintlog_write(struct filed *f, struct iovlist *il, int flags)
 	case F_FORW:
 		/* Truncate messages to RFC 5426 recommended size. */
 		dprintf(" %s", f->fu_forw_hname);
-		switch (f->fu_forw_addr->ai_addr->sa_family) {
+		switch (f->fu_forw_addr->ai_family) {
 #ifdef INET
 		case AF_INET:
 			dprintf(":%d\n",
@@ -1797,9 +1896,11 @@ fprintlog_write(struct filed *f, struct iovlist *il, int flags)
 			msghdr.msg_iov = il->iov;
 			msghdr.msg_iovlen = il->iovcnt;
 			STAILQ_FOREACH(sl, &shead, next) {
-				if (sl->sl_ss.ss_family == AF_LOCAL ||
-				    sl->sl_ss.ss_family == AF_UNSPEC ||
-				    sl->sl_socket < 0)
+				if (sl->sl_socket < 0)
+					continue;
+				if (sl->sl_sa == NULL ||
+				    sl->sl_family == AF_UNSPEC ||
+				    sl->sl_family == AF_LOCAL)
 					continue;
 				lsent = sendmsg(sl->sl_socket, &msghdr, 0);
 				if (lsent == (ssize_t)il->totalsize)
@@ -2069,6 +2170,7 @@ fprintlog_first(struct filed *f, const char *hostname, const char *app_name,
     const char *procid, const char *msgid __unused,
     const char *structured_data __unused, const char *msg, int flags)
 {
+	enum log_format want_format;
 
 	dprintf("Logging to %s", TypeNames[f->f_type]);
 	f->f_time = now;
@@ -2078,7 +2180,8 @@ fprintlog_first(struct filed *f, const char *hostname, const char *app_name,
 		return;
 	}
 
-	if (RFC3164OutputFormat)
+	want_format = (f->f_type == F_FORW) ? NetworkFormat : OutputFormat;
+	if (want_format == RFC3164)
 		fprintlog_rfc3164(f, hostname, app_name, procid, msg, flags);
 	else
 		fprintlog_rfc5424(f, hostname, app_name, procid, msgid,
@@ -2226,7 +2329,9 @@ cvthname(struct sockaddr *f)
 	hl = strlen(hname);
 	if (hl > 0 && hname[hl-1] == '.')
 		hname[--hl] = '\0';
-	trimdomain(hname, hl);
+	/* RFC 5424 prefers logging FQDNs. */
+	if (RFC3164OutputFormat)
+		trimdomain(hname, hl);
 	return (hname);
 }
 
@@ -2290,7 +2395,7 @@ die(int signo)
 		logerror(buf);
 	}
 	STAILQ_FOREACH(sl, &shead, next) {
-		if (sl->sl_ss.ss_family == AF_LOCAL)
+		if (sl->sl_sa != NULL && sl->sl_family == AF_LOCAL)
 			unlink(sl->sl_peer->pe_name);
 	}
 	pidfile_remove(pfh);
@@ -2492,7 +2597,7 @@ init(int signo)
 		err(EX_OSERR, "gethostname() failed");
 	if ((p = strchr(LocalHostName, '.')) != NULL) {
 		/* RFC 5424 prefers logging FQDNs. */
-		if (RFC3164OutputFormat)
+		if (OutputFormat == RFC3164)
 			*p = '\0';
 		LocalDomain = p + 1;
 	} else {
@@ -2604,7 +2709,7 @@ init(int signo)
 				break;
 
 			case F_FORW:
-				switch (f->fu_forw_addr->ai_addr->sa_family) {
+				switch (f->fu_forw_addr->ai_family) {
 #ifdef INET
 				case AF_INET:
 					port = ntohs(satosin(f->fu_forw_addr->ai_addr)->sin_port);
@@ -2685,7 +2790,7 @@ prop_filter_compile(struct prop_filter *pfilter, char *filter)
 	/*
 	 * Here's some filter examples mentioned in syslog.conf(5)
 	 * 'msg, contains, ".*Deny.*"'
-	 * 'processname, regex, "^bird6?$"'
+	 * 'programname, regex, "^bird6?$"'
 	 * 'hostname, icase_ereregex, "^server-(dcA|podB)-rack1[0-9]{2}\\..*"'
 	 */
 
@@ -2853,7 +2958,9 @@ cfline(const char *line, const char *prog, const char *host,
 		hl = strlen(f->f_host);
 		if (hl > 0 && f->f_host[hl-1] == '.')
 			f->f_host[--hl] = '\0';
-		trimdomain(f->f_host, hl);
+		/* RFC 5424 prefers logging FQDNs. */
+		if (RFC3164OutputFormat)
+			trimdomain(f->f_host, hl);
 	}
 
 	/* save program name if any */
@@ -3852,8 +3959,7 @@ socksetup(struct peer *pe)
 #endif
 			dprintf("listening on socket\n");
 		dprintf("sending on socket\n");
-		addsock(res->ai_addr, res->ai_addrlen,
-		    &(struct socklist){
+		addsock(res, &(struct socklist){
 			.sl_socket = s,
 			.sl_peer = pe,
 			.sl_recv = sl_recv
