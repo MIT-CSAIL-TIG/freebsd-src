@@ -123,7 +123,12 @@ device		iflib
 device		em		# Intel PRO/1000 Gigabit Ethernet Family
 device 		ix
 device		cxgbe		# Chelsio T4xx 10GbE and T5xx 40GbE families
-device		ixl		# Intel XL710 40GbE family
+
+# This driver insta-panics on three servers with on-motherboard X722
+# 1G interfaces, so load it explicitly on the machines that have a
+# card from this family that works (and continue not to buy any more
+# of them).
+#device		ixl		# Intel XL710 40GbE family
 
 # PCI Ethernet NICs that use the common MII bus controller code.
 # NOTE: Be sure to keep the 'device miibus' line in order to use these NICs!
