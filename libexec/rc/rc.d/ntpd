@@ -112,7 +112,7 @@ ntpd_precmd()
 	fi
 
 	# Set command_args based on the various config vars.
-	command_args="-p ${pidfile} -c ${ntpd_config} ${driftopt}"
+	command_args="${pidfile:+"-p ${pidfile} "}-c ${ntpd_config} ${driftopt}"
 	if checkyesno ntpd_sync_on_start; then
 		command_args="${command_args} -g"
 	fi
@@ -236,5 +236,12 @@ ntpd_fetch_leapfile() {
 		fi
 	fi
 }
+
+# If the user specified a pidfile, then don't try to do the special thing.
+case "${ntpd_flags}" in
+*-p* | *--pidfile*)
+	echo "pidfile specified, disabling special handling" >&2
+	unset pidfile;;
+esac
 
 run_rc_command "$1"
