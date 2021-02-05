@@ -240,7 +240,6 @@ ntpd_fetch_leapfile() {
 # If the user specified a pidfile, then don't try to do the special thing.
 case "${ntpd_flags}" in
 *-p* | *--pidfile*)
-	echo "pidfile specified, disabling special handling" >&2
 	unset pidfile;;
 esac
 
