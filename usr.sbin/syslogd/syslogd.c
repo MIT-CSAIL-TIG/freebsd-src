@@ -106,6 +106,10 @@ __FBSDID("$FreeBSD: head/usr.sbin/syslogd/syslogd.c 368529 2020-12-10 23:23:42Z 
 #define	TTYMSGTIME	1		/* timeout passed to ttymsg */
 #define	RCVBUF_MINSIZE	(80 * 1024)	/* minimum size of dgram rcv buffer */
 
+/* Maximum packet sizes for remote servers */
+#define	MAXUDP_IPV4	(1460 - 6)	/* spec says 480, that's too shotr */
+#define	MAXUDP_IPV6	1180		/* per spec */
+
 #include <sys/param.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
@@ -1874,14 +1878,14 @@ fprintlog_write(struct filed *f, struct iovlist *il, int flags)
 		case AF_INET:
 			dprintf(":%d\n",
 			    ntohs(satosin(f->fu_forw_addr->ai_addr)->sin_port));
-			iovlist_truncate(il, 480);
+			iovlist_truncate(il, MAXUDP_IPV4);
 			break;
 #endif
 #ifdef INET6
 		case AF_INET6:
 			dprintf(":%d\n",
 			    ntohs(satosin6(f->fu_forw_addr->ai_addr)->sin6_port));
-			iovlist_truncate(il, 1180);
+			iovlist_truncate(il, MAXUDP_IPV6);
 			break;
 #endif
 		default:
