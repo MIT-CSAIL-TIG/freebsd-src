@@ -185,8 +185,11 @@ device		smb		# User access to SMBus devices
 
 # In-kernel cryptography
 device		crypto		# Software/hardware crypto subsystem
-device		cryptodev
 device		aesni		# Intel AES instructions
+# Do not enable: there is no performance advantage when it's just software
+# crypto, and the implementation in 12.x is buggy.
+#device		cryptodev
+
 
 # Network options
 #options		IPSEC
