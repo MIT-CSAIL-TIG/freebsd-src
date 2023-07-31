@@ -17,7 +17,7 @@
 #define	ETHER_HDR_LEN		(ETHER_ADDR_LEN*2+ETHER_TYPE_LEN)
 #define	ETHER_MIN_LEN		64	/* minimum frame len, including CRC */
 #define	ETHER_MAX_LEN		1518	/* maximum frame len, including CRC */
-#define	ETHER_MAX_LEN_JUMBO	9018	/* max jumbo frame len, including CRC */
+#define	ETHER_MAX_LEN_JUMBO	9220	/* max jumbo frame len, including CRC */
 
 #define	ETHER_VLAN_ENCAP_LEN	4	/* len of 802.1Q VLAN encapsulation */
 /*
