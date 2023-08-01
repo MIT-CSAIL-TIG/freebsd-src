@@ -361,7 +361,7 @@ static int repeatinterval[] = { 30, 120, 600 };	/* # of secs before flush */
 #define F_WALL		6		/* everyone logged on */
 #define F_PIPE		7		/* pipe to program */
 
-enum	log_format { DEFAULT_FORMAT = 0, RFC3164, RFC5425 };
+enum	log_format { DEFAULT_FORMAT = 0, RFC3164, RFC5424 };
 #define	DEFAULT_FORMAT_IS	RFC3164
 
 static const char *TypeNames[] = {
@@ -414,7 +414,7 @@ static int	sigpipe[2];	/* Pipe to catch a signal during select(). */
  * OutputFormat.  OutputFormat defaults to RFC3164 format for backwards
  * compatibility.
  */
-static enum	log_format OutputFormat;
+static enum	log_format NetworkFormat, OutputFormat;
 
 static volatile sig_atomic_t MarkSet, WantDie, WantInitialize, WantReapchild;
 
@@ -561,7 +561,7 @@ main(int argc, char *argv[])
 	if (madvise(NULL, 0, MADV_PROTECT) != 0)
 		dprintf("madvise() failed: %s\n", strerror(errno));
 
-	while ((ch = getopt(argc, argv, "468Aa:b:cCdf:FHkl:M:m:nNoO:p:P:sS:Tuv"))
+	while ((ch = getopt(argc, argv, "468Aa:b:cCdf:FHkl:M:m:nNoO:p:P:r:sS:Tuv"))
 	    != -1)
 		switch (ch) {
 #ifdef INET
@@ -707,6 +707,16 @@ main(int argc, char *argv[])
 		case 'P':		/* path for alt. PID */
 			PidFile = optarg;
 			break;
+		case 'r':
+			if (strcmp(optarg, "bsd") == 0 ||
+			    strcmp(optarg, "rfc3164") == 0)
+				NetworkFormat = RFC3164;
+			else if (strcmp(optarg, "syslog") == 0 ||
+			    strcmp(optarg, "rfc5424") == 0)
+				NetworkFormat = RFC5424;
+			else
+				usage();
+			break;
 		case 's':		/* no network mode */
 			SecureMode++;
 			break;
@@ -728,8 +738,10 @@ main(int argc, char *argv[])
        /* Explicitly set formats which have been defaulted to the defaults */
        if (OutputFormat == DEFAULT_FORMAT)
                OutputFormat = DEFAULT_FORMAT_IS;
+       if (NetworkFormat == DEFAULT_FORMAT)
+	       NetworkFormat = OutputFormat;
 
-	if (OutputFormat == RFC3165 && MaxForwardLen > 1024)
+	if (NetworkFormat == RFC3164 && MaxForwardLen > 1024)
 		errx(1, "RFC 3164 messages may not exceed 1024 bytes");
 
 	/* Pipe to catch a signal during select(). */
@@ -972,7 +984,7 @@ usage(void)
 		"               [-b bind_address] [-f config_file]\n"
 		"               [-l [mode:]path] [-M fwd_length]\n"
 		"               [-m mark_interval] [-O format] [-P pid_file]\n"
-		"               [-p log_socket] [-S logpriv_socket]\n");
+		"               [-p log_socket] [-r format] [-S logpriv_socket]\n");
 	exit(1);
 }
 
@@ -2160,6 +2172,7 @@ fprintlog_first(struct filed *f, const char *hostname, const char *app_name,
     const char *procid, const char *msgid __unused,
     const char *structured_data __unused, const char *msg, int flags)
 {
+	enum log_format want_format;
 
 	dprintf("Logging to %s", TypeNames[f->f_type]);
 	f->f_time = now;
@@ -2169,7 +2182,8 @@ fprintlog_first(struct filed *f, const char *hostname, const char *app_name,
 		return;
 	}
 
-	if (OutputFormat == RFC3164)
+	want_format = (f->f_type == F_FORW) ? NetworkFormat : OutputFormat;
+	if (want_format == RFC3164)
 		fprintlog_rfc3164(f, hostname, app_name, procid, msg, flags);
 	else
 		fprintlog_rfc5424(f, hostname, app_name, procid, msgid,
