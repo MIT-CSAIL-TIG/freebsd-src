@@ -11,7 +11,8 @@ options 	PREEMPTION		# Enable kernel thread preemption
 options         EFIRT                   # EFI Runtime Services support
 options 	INET			# InterNETworking
 options 	INET6			# IPv6 communications protocols
-options 	SCTP			# Stream Control Transmission Protocol
+options 	SCTP_SUPPORT		# Provision for run-time loadable SCTP
+options		KERN_TLS		# TLS transmit & receive offload
 options         TCP_OFFLOAD             # TCP offload
 options         TCP_BLACKBOX            # Enhanced TCP event logging
 options         TCP_HHOOK               # hhook(9) framework for TCP
@@ -24,7 +25,7 @@ options 	NFSLOCKD		# Network Lock Manager
 options		KGSSAPI			# Kernel GSSAPI (needs userland supprt)
 options 	MSDOSFS			# MSDOS Filesystem
 options 	CD9660			# ISO 9660 Filesystem
-#options		VFS_AIO			# Support asynchronous I/O syscalls
+options		TMPFS			# Efficient memory filesystem
 options 	GEOM_PART_GPT		# GUID Partition Tables.
 options 	GEOM_LABEL		# Provides labelization
 options		GEOM_MULTIPATH		# Allows for multipathing
@@ -48,7 +49,9 @@ options 	KDB			# Kernel debugger related code
 options 	KDB_TRACE		# Print a stack trace for a panic
 options		COMPAT_FREEBSD32	# Can run 32-bit binaries
 options 	COMPAT_FREEBSD10	# Can run FreeBSD 10.x binaries
-options		COMPAT_FREEBSD11
+options		COMPAT_FREEBSD11	# Can run FreeBSD 11.x binaries
+options		COMPAT_FREEBSD12	# Can run FreeBSD 12.x binaries
+options		EFIRT			# EFI Runtime Services support
 options 	DDB			# Build in the debugger
 options 	KDB_UNATTENDED		# Don't go to debugger on panic
 options 	BREAK_TO_DEBUGGER	# Go to debugger on serial console brk
@@ -59,6 +62,10 @@ options		PPS_SYNC		# Allow ntpd to use kernel PPS
 options		VIMAGE			# Virtual networking stacks for jails
 options 	PCI_IOV
 
+# Kernel dump features.
+options        GZIO                    # gzip-compressed kernel and user dumps
+options        ZSTDIO                  # zstd-compressed kernel and user dumps
+
 # Make an SMP-capable kernel by default
 options 	SMP			# Symmetric MultiProcessor Kernel
 
@@ -67,7 +74,7 @@ device		cpufreq
 
 # Bus support.
 device		acpi
-options         ACPI_DMAR
+options         IOMMU
 device		pci
 
 # Floppy drives
@@ -124,6 +131,11 @@ device		em		# Intel PRO/1000 Gigabit Ethernet Family
 device 		ix
 device		cxgbe		# Chelsio T4xx 10GbE and T5xx 40GbE families
 
+device         iavf                    # Intel Adaptive Virtual Function
+device         ice                     # Intel 800 Series Physical Function
+device         axp                     # AMD EPYC integrated NIC
+
+
 # This driver insta-panics on three servers with on-motherboard X722
 # 1G interfaces, so load it explicitly on the machines that have a
 # card from this family that works (and continue not to buy any more
@@ -138,7 +150,6 @@ device		bge		# Broadcom BCM570xx Gigabit Ethernet
 
 # Pseudo devices.
 device		loop		# Network loopback
-device		random		# Entropy device
 device          rdrand_rng              # Intel Bull Mountain RNG
 device		ether		# Ethernet support
 device		vlan		# 802.1Q VLAN support
@@ -168,6 +179,9 @@ device		ukbd		# Keyboard
 device		umass		# Disks/Mass storage - Requires scbus and da
 device		ums		# Mouse
 
+# HID support
+device		hid		# Generic HID support
+
 # System management options
 device		ipmi		# Intelligent Platform Management Interface
 device		smbios		# System Management BIOS
@@ -192,7 +206,6 @@ device		aesni		# Intel AES instructions
 
 
 # Network options
-#options		IPSEC
 options		IPFIREWALL	# Kernel firewall, traditional FreeBSD flavor
 options		IPFIREWALL_DEFAULT_TO_ACCEPT
 options		ACCEPT_FILTER_DATA
