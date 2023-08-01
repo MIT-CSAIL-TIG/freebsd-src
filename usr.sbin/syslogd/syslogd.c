@@ -361,6 +361,9 @@ static int repeatinterval[] = { 30, 120, 600 };	/* # of secs before flush */
 #define F_WALL		6		/* everyone logged on */
 #define F_PIPE		7		/* pipe to program */
 
+enum	log_format { DEFAULT_FORMAT = 0, RFC3164, RFC5425 };
+#define	DEFAULT_FORMAT_IS	RFC3164
+
 static const char *TypeNames[] = {
 	"UNUSED",	"FILE",		"TTY",		"CONSOLE",
 	"FORW",		"USERS",	"WALL",		"PIPE"
@@ -404,7 +407,14 @@ static int	KeepKernFac;	/* Keep remotely logged kernel facility */
 static int	needdofsync = 0; /* Are any file(s) waiting to be fsynced? */
 static struct pidfh *pfh;
 static int	sigpipe[2];	/* Pipe to catch a signal during select(). */
-static bool	RFC3164OutputFormat = true; /* Use legacy format by default. */
+
+/*
+ * Formats to write output in.  NetworkFormat controls logs sent to
+ * remote syslog servers; when unset, it defaults to the same as
+ * OutputFormat.  OutputFormat defaults to RFC3164 format for backwards
+ * compatibility.
+ */
+static enum	log_format OutputFormat;
 
 static volatile sig_atomic_t MarkSet, WantDie, WantInitialize, WantReapchild;
 
@@ -684,10 +694,10 @@ main(int argc, char *argv[])
 		case 'O':
 			if (strcmp(optarg, "bsd") == 0 ||
 			    strcmp(optarg, "rfc3164") == 0)
-				RFC3164OutputFormat = true;
+				OutputFormat = RFC3164;
 			else if (strcmp(optarg, "syslog") == 0 ||
 			    strcmp(optarg, "rfc5424") == 0)
-				RFC3164OutputFormat = false;
+				OutputFormat = RFC5424;
 			else
 				usage();
 			break;
@@ -715,7 +725,11 @@ main(int argc, char *argv[])
 	if ((argc -= optind) != 0)
 		usage();
 
-	if (RFC3164OutputFormat && MaxForwardLen > 1024)
+       /* Explicitly set formats which have been defaulted to the defaults */
+       if (OutputFormat == DEFAULT_FORMAT)
+               OutputFormat = DEFAULT_FORMAT_IS;
+
+	if (OutputFormat == RFC3165 && MaxForwardLen > 1024)
 		errx(1, "RFC 3164 messages may not exceed 1024 bytes");
 
 	/* Pipe to catch a signal during select(). */
@@ -2155,7 +2169,7 @@ fprintlog_first(struct filed *f, const char *hostname, const char *app_name,
 		return;
 	}
 
-	if (RFC3164OutputFormat)
+	if (OutputFormat == RFC3164)
 		fprintlog_rfc3164(f, hostname, app_name, procid, msg, flags);
 	else
 		fprintlog_rfc5424(f, hostname, app_name, procid, msgid,
@@ -2304,7 +2318,7 @@ cvthname(struct sockaddr *f)
 	if (hl > 0 && hname[hl-1] == '.')
 		hname[--hl] = '\0';
 	/* RFC 5424 prefers logging FQDNs. */
-	if (RFC3164OutputFormat)
+	if (OutputFormat == RFC3164)
 		trimdomain(hname, hl);
 	return (hname);
 }
@@ -2571,7 +2585,7 @@ init(int signo)
 		err(EX_OSERR, "gethostname() failed");
 	if ((p = strchr(LocalHostName, '.')) != NULL) {
 		/* RFC 5424 prefers logging FQDNs. */
-		if (RFC3164OutputFormat)
+		if (OutputFormat == RFC3164)
 			*p = '\0';
 		LocalDomain = p + 1;
 	} else {
@@ -2933,7 +2947,7 @@ cfline(const char *line, const char *prog, const char *host,
 		if (hl > 0 && f->f_host[hl-1] == '.')
 			f->f_host[--hl] = '\0';
 		/* RFC 5424 prefers logging FQDNs. */
-		if (RFC3164OutputFormat)
+		if (OutputFormat == RFC3164)
 			trimdomain(f->f_host, hl);
 	}
 
