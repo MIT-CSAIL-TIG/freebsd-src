@@ -8,6 +8,7 @@ makeoptions	WITH_CTF=1		# Build kernel with dtrace(8) symbols
 
 options 	SCHED_ULE		# ULE scheduler
 options 	PREEMPTION		# Enable kernel thread preemption
+options		NUMA
 options         EFIRT                   # EFI Runtime Services support
 options 	INET			# InterNETworking
 options 	INET6			# IPv6 communications protocols
