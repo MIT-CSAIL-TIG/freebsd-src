@@ -72,6 +72,11 @@ options 	SMP			# Symmetric MultiProcessor Kernel
 
 # CPU frequency control
 device		cpufreq
+options 	EARLY_AP_STARTUP	# Start auxiliary CPUs early in boot
+# EARLY_AP_STARTUP is apparently mandatory for systems that have
+# certain cpufreq(4) implementations, otherwise hwpstate_intel hangs
+# trying to configure non-boot processors that haven't been initialized
+# yet.
 
 # Bus support.
 device		acpi
