@@ -104,6 +104,7 @@ device		cd		# CD
 device		pass		# Passthrough device (direct ATA/SCSI access)
 device		ses		# SCSI Environmental Services (and SAF-TE)
 device		ctl		# CAM Target Layer (iSCSI targets)
+options 	CAM_IOSCHED_DYNAMIC	# Get more data about I/O performance
 
 # RAID controllers
 device		mfi		# LSI MegaRAID SAS
