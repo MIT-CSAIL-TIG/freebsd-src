@@ -1,7 +1,7 @@
-# Temporary kernel configuration for use of vt(4) instead of
-# sc(4) for the video console -- required for UEFI systems
+# Based on:
+# $FreeBSD: releng/9.0/sys/amd64/conf/GENERIC 227305 2011-11-07 13:40:54Z marius $
 cpu		HAMMER
-ident		CSAIL-VT
+ident		CSAIL
 
 makeoptions	DEBUG="-g"		# Build kernel with gdb(1) debug symbols
 makeoptions	WITH_CTF=1		# Build kernel with dtrace(8) symbols
@@ -52,6 +52,7 @@ options		COMPAT_FREEBSD32	# Can run 32-bit binaries
 options 	COMPAT_FREEBSD10	# Can run FreeBSD 10.x binaries
 options		COMPAT_FREEBSD11	# Can run FreeBSD 11.x binaries
 options		COMPAT_FREEBSD12	# Can run FreeBSD 12.x binaries
+options		EFIRT			# EFI Runtime Services support
 options 	DDB			# Build in the debugger
 options 	KDB_UNATTENDED		# Don't go to debugger on panic
 options 	BREAK_TO_DEBUGGER	# Go to debugger on serial console brk
@@ -125,12 +126,8 @@ device		vga		# VGA video card driver
 
 device		splash		# Splash screen and screen saver support
 
-# vt is the modern (UEFI-compatible) console driver
-# Eventually we should standardize on vt everywhere but I haven't
-# tried it anywhere else.
-device		vt
-device		vt_vga
-device		vt_efifb
+# syscons is the default console driver, resembling an SCO console
+device		sc
 
 # Serial (COM) ports
 device		uart		# Generic UART driver
