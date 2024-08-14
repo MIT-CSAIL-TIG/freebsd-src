@@ -61,6 +61,7 @@ options         CAPABILITIES            # Capsicum capabilities
 options		PPS_SYNC		# Allow ntpd to use kernel PPS
 options		VIMAGE			# Virtual networking stacks for jails
 options 	PCI_IOV
+options		PCI_HP			# Support PCIe hot-plug (for NVMe)
 
 # Kernel dump features.
 options        GZIO                    # gzip-compressed kernel and user dumps
