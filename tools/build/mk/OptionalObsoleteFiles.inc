@@ -6613,10 +6613,6 @@ OLD_LIBS+=usr/lib/libomp.so
 
 .if ${MK_OPENSSH} == no
 OLD_FILES+=etc/rc.d/sshd
-OLD_FILES+=etc/ssh/moduli
-OLD_FILES+=etc/ssh/ssh_config
-OLD_FILES+=etc/ssh/sshd_config
-OLD_DIRS+=etc/ssh
 OLD_FILES+=usr/bin/scp
 OLD_FILES+=usr/bin/sftp
 OLD_FILES+=usr/bin/slogin
