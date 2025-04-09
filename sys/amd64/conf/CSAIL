@@ -93,7 +93,6 @@ device		mvs		# Marvell 88SX50XX/88SX60XX/88SX70XX/SoC SATA
 device		siis		# SiliconImage SiI3124/SiI3132/SiI3531 SATA
 
 # SCSI Controllers
-device		mpt		# LSI-Logic MPT-Fusion
 device		mps		# LSI-Logic MPT-Fusion 2
 device		mpr		# Avago MPT SAS-3
 
