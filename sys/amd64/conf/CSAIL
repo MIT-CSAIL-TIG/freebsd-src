@@ -6,12 +6,12 @@ makeoptions	WITH_CTF=1		# Build kernel with dtrace(8) symbols
 
 options 	SCHED_ULE		# ULE scheduler
 options 	PREEMPTION		# Enable kernel thread preemption
-options		NUMA
+options 	NUMA
 options         EFIRT                   # EFI Runtime Services support
 options 	INET			# InterNETworking
 options 	INET6			# IPv6 communications protocols
 options 	SCTP_SUPPORT		# Provision for run-time loadable SCTP
-options		KERN_TLS		# TLS transmit & receive offload
+options 	KERN_TLS		# TLS transmit & receive offload
 options         TCP_OFFLOAD             # TCP offload
 options         TCP_BLACKBOX            # Enhanced TCP event logging
 options         TCP_HHOOK               # hhook(9) framework for TCP
@@ -21,14 +21,14 @@ options 	SOFTUPDATES		# Enable FFS soft updates support
 options 	NFSCL			# New Network Filesystem Client
 options 	NFSD			# New Network Filesystem Server
 options 	NFSLOCKD		# Network Lock Manager
-options		KGSSAPI			# Kernel GSSAPI (needs userland supprt)
+options 	KGSSAPI			# Kernel GSSAPI (needs userland supprt)
 options 	MSDOSFS			# MSDOS Filesystem
 options 	CD9660			# ISO 9660 Filesystem
-options		TMPFS			# Efficient memory filesystem
+options 	TMPFS			# Efficient memory filesystem
 options 	GEOM_PART_GPT		# GUID Partition Tables.
 options 	GEOM_LABEL		# Provides labelization
-options		GEOM_MULTIPATH		# Allows for multipathing
-options		GEOM_MIRROR		# Simple mirroring (for swap)
+options 	GEOM_MULTIPATH		# Allows for multipathing
+options 	GEOM_MIRROR		# Simple mirroring (for swap)
 options 	KTRACE			# ktrace(1) support
 options 	STACK			# stack(9) support
 options 	SYSVSHM			# SYSV-style shared memory
@@ -42,24 +42,26 @@ options 	AUDIT			# Security event auditing
 options 	MAC			# TrustedBSD MAC Framework
 options 	KDTRACE_FRAME		# Ensure frames are compiled in
 options 	KDTRACE_HOOKS		# Kernel DTrace hooks
-options		DDB_CTF			# Load DTrace symbols
 options 	INCLUDE_CONFIG_FILE     # Include this file in kernel
 options 	KDB			# Kernel debugger related code
 options 	KDB_TRACE		# Print a stack trace for a panic
-options		COMPAT_FREEBSD32	# Can run 32-bit binaries
+options 	COMPAT_FREEBSD32	# Can run 32-bit binaries
 options 	COMPAT_FREEBSD10	# Can run FreeBSD 10.x binaries
-options		COMPAT_FREEBSD11	# Can run FreeBSD 11.x binaries
-options		COMPAT_FREEBSD12	# Can run FreeBSD 12.x binaries
+options 	COMPAT_FREEBSD11	# Can run FreeBSD 11.x binaries
+options 	COMPAT_FREEBSD12	# Can run FreeBSD 12.x binaries
+options 	COMPAT_FREEBSD13	# Can run FreeBSD 13.x binaries
 options 	DDB			# Build in the debugger
+options 	DDB_CTF			# Load DTrace symbols
 options 	KDB_UNATTENDED		# Don't go to debugger on panic
 options 	BREAK_TO_DEBUGGER	# Go to debugger on serial console brk
 #options		PROCDESC
 options         CAPABILITY_MODE         # Capsicum capability mode
 options         CAPABILITIES            # Capsicum capabilities
-options		PPS_SYNC		# Allow ntpd to use kernel PPS
-options		VIMAGE			# Virtual networking stacks for jails
+options 	PPS_SYNC		# Allow ntpd to use kernel PPS
+options 	VIMAGE			# Virtual networking stacks for jails
 options 	PCI_IOV
-options		PCI_HP			# Support PCIe hot-plug (for NVMe)
+options 	PCI_HP			# Support PCIe hot-plug (for NVMe)
+options 	COMPAT_LINUXKPI		# Support mlx5 driver
 
 # Kernel dump features.
 options        GZIO                    # gzip-compressed kernel and user dumps
@@ -81,9 +83,6 @@ device		acpi
 options         IOMMU
 device		pci
 
-# Floppy drives
-device		fdc
-
 # ATA controllers
 device		ahci		# AHCI-compatible SATA controllers
 device		ata		# Legacy ATA/SATA controllers
@@ -93,6 +92,7 @@ device		siis		# SiliconImage SiI3124/SiI3132/SiI3531 SATA
 # SCSI Controllers
 device		mps		# LSI-Logic MPT-Fusion 2
 device		mpr		# Avago MPT SAS-3
+device		mpi3mr		# Broadcom MPT-Fusion 4
 
 # ATA/SCSI peripherals
 device		scbus		# SCSI bus (required for ATA/SCSI)
@@ -137,12 +137,18 @@ device		uart		# Generic UART driver
 device		iflib
 device		em		# Intel PRO/1000 Gigabit Ethernet Family
 device 		ix
-device		cxgbe		# Chelsio T4xx 10GbE and T5xx 40GbE families
 
 device         iavf                    # Intel Adaptive Virtual Function
 device         ice                     # Intel 800 Series Physical Function
+device	       igc		       # Intel I225 Multigig Ethernet
 device         axp                     # AMD EPYC integrated NIC
 
+# Nvidia/Mellanox Connect-X 4 and later, Ethernet only
+#  o requires COMPAT_LINUXKPI and xz(4)
+#  o mlx5ib requires ibcore infra and is not included by default
+device		mlx5			# Base driver
+device		mlxfw			# Firmware update
+device		mlx5en			# Ethernet driver
 
 # This driver insta-panics on three servers with on-motherboard X722
 # 1G interfaces, so load it explicitly on the machines that have a
@@ -164,6 +170,7 @@ device		vlan		# 802.1Q VLAN support
 device		pty		# BSD-style compatibility pseudo ttys
 device		md		# Memory "disks"
 device		firmware	# firmware assist module
+device		xz			# lzma decompression
 
 device		bpf		# Berkeley packet filter
 
@@ -174,6 +181,9 @@ device		virtio_blk
 device		virtio_pci
 device		virtio_scsi
 device		vtnet
+
+# Linux KVM paravirtualization support
+device		kvm_clock		# KVM paravirtual clock driver
 
 # USB support
 options 	USB_DEBUG	# enable debug msgs
@@ -214,11 +224,11 @@ device		aesni		# Intel AES instructions
 
 
 # Network options
-options		IPFIREWALL	# Kernel firewall, traditional FreeBSD flavor
-options		IPFIREWALL_DEFAULT_TO_ACCEPT
-options		ACCEPT_FILTER_DATA
-options		ACCEPT_FILTER_DNS
-options		ACCEPT_FILTER_HTTP
+options 	IPFIREWALL	# Kernel firewall, traditional FreeBSD flavor
+options 	IPFIREWALL_DEFAULT_TO_ACCEPT
+options 	ACCEPT_FILTER_DATA
+options 	ACCEPT_FILTER_DNS
+options 	ACCEPT_FILTER_HTTP
 #device		netmap
 
 # Random crap that would get auto-loaded by devd(8) anyway
