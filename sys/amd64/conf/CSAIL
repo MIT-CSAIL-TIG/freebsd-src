@@ -1,7 +1,5 @@
-# Temporary kernel configuration for use of vt(4) instead of
-# sc(4) for the video console -- required for UEFI systems
 cpu		HAMMER
-ident		CSAIL-VT
+ident		CSAIL
 
 makeoptions	DEBUG="-g"		# Build kernel with gdb(1) debug symbols
 makeoptions	WITH_CTF=1		# Build kernel with dtrace(8) symbols
