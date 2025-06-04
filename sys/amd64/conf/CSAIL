@@ -1,0 +1,196 @@
+# Based on:
+# $FreeBSD: releng/9.0/sys/amd64/conf/GENERIC 227305 2011-11-07 13:40:54Z marius $
+cpu		HAMMER
+ident		CSAIL
+
+makeoptions	DEBUG="-g"		# Build kernel with gdb(1) debug symbols
+makeoptions	WITH_CTF=1		# Build kernel with dtrace(8) symbols
+
+options 	SCHED_ULE		# ULE scheduler
+options 	PREEMPTION		# Enable kernel thread preemption
+options         EFIRT                   # EFI Runtime Services support
+options 	INET			# InterNETworking
+options 	INET6			# IPv6 communications protocols
+options 	SCTP			# Stream Control Transmission Protocol
+options         TCP_OFFLOAD             # TCP offload
+options         TCP_BLACKBOX            # Enhanced TCP event logging
+options         TCP_HHOOK               # hhook(9) framework for TCP
+options         TCP_RFC7413             # TCP Fast Open
+options 	FFS			# Berkeley Fast Filesystem
+options 	SOFTUPDATES		# Enable FFS soft updates support
+options 	NFSCL			# New Network Filesystem Client
+options 	NFSD			# New Network Filesystem Server
+options 	NFSLOCKD		# Network Lock Manager
+options		KGSSAPI			# Kernel GSSAPI (needs userland supprt)
+options 	MSDOSFS			# MSDOS Filesystem
+options 	CD9660			# ISO 9660 Filesystem
+#options		VFS_AIO			# Support asynchronous I/O syscalls
+options 	GEOM_PART_GPT		# GUID Partition Tables.
+options 	GEOM_LABEL		# Provides labelization
+options		GEOM_MULTIPATH		# Allows for multipathing
+options		GEOM_MIRROR		# Simple mirroring (for swap)
+options 	KTRACE			# ktrace(1) support
+options 	STACK			# stack(9) support
+options 	SYSVSHM			# SYSV-style shared memory
+options 	SYSVMSG			# SYSV-style message queues
+options 	SYSVSEM			# SYSV-style semaphores
+options 	_KPOSIX_PRIORITY_SCHEDULING # POSIX P1003_1B real-time extensions
+options 	PRINTF_BUFR_SIZE=128	# Prevent printf output being interspersed.
+options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
+options 	HWPMC_HOOKS		# Necessary kernel hooks for hwpmc(4)
+options 	AUDIT			# Security event auditing
+options 	MAC			# TrustedBSD MAC Framework
+options 	KDTRACE_FRAME		# Ensure frames are compiled in
+options 	KDTRACE_HOOKS		# Kernel DTrace hooks
+options		DDB_CTF			# Load DTrace symbols
+options 	INCLUDE_CONFIG_FILE     # Include this file in kernel
+options 	KDB			# Kernel debugger related code
+options 	KDB_TRACE		# Print a stack trace for a panic
+options		COMPAT_FREEBSD32	# Can run 32-bit binaries
+options 	COMPAT_FREEBSD10	# Can run FreeBSD 10.x binaries
+options		COMPAT_FREEBSD11
+options 	DDB			# Build in the debugger
+options 	KDB_UNATTENDED		# Don't go to debugger on panic
+options 	BREAK_TO_DEBUGGER	# Go to debugger on serial console brk
+#options		PROCDESC
+options         CAPABILITY_MODE         # Capsicum capability mode
+options         CAPABILITIES            # Capsicum capabilities
+options		PPS_SYNC		# Allow ntpd to use kernel PPS
+options		VIMAGE			# Virtual networking stacks for jails
+options 	PCI_IOV
+
+# Make an SMP-capable kernel by default
+options 	SMP			# Symmetric MultiProcessor Kernel
+
+# CPU frequency control
+device		cpufreq
+
+# Bus support.
+device		acpi
+options         ACPI_DMAR
+device		pci
+
+# Floppy drives
+device		fdc
+
+# ATA controllers
+device		ahci		# AHCI-compatible SATA controllers
+device		ata		# Legacy ATA/SATA controllers
+device		mvs		# Marvell 88SX50XX/88SX60XX/88SX70XX/SoC SATA
+device		siis		# SiliconImage SiI3124/SiI3132/SiI3531 SATA
+
+# SCSI Controllers
+device		mpt		# LSI-Logic MPT-Fusion
+device		mps		# LSI-Logic MPT-Fusion 2
+device		mpr		# Avago MPT SAS-3
+
+# ATA/SCSI peripherals
+device		scbus		# SCSI bus (required for ATA/SCSI)
+device		da		# Direct Access (disks)
+device		cd		# CD
+device		pass		# Passthrough device (direct ATA/SCSI access)
+device		ses		# SCSI Environmental Services (and SAF-TE)
+device		ctl		# CAM Target Layer (iSCSI targets)
+
+# RAID controllers
+device		mfi		# LSI MegaRAID SAS
+device		mfip		# LSI MegaRAID SAS passthrough
+device		mrsas		# newer LSI MegaRAID SAS
+
+# Non-Volatile Memory Express (NVMe)
+device		nvme
+device		nvd
+
+# atkbdc0 controls both the keyboard and the PS/2 mouse
+device		atkbdc		# AT keyboard controller
+device		atkbd		# AT keyboard
+device		psm		# PS/2 mouse
+
+device		kbdmux		# keyboard multiplexer
+
+device		vga		# VGA video card driver
+
+device		splash		# Splash screen and screen saver support
+
+# syscons is the default console driver, resembling an SCO console
+device		sc
+
+# Serial (COM) ports
+device		uart		# Generic UART driver
+
+# PCI Ethernet NICs.
+device		iflib
+device		em		# Intel PRO/1000 Gigabit Ethernet Family
+device 		ix
+device		cxgbe		# Chelsio T4xx 10GbE and T5xx 40GbE families
+device		ixl		# Intel XL710 40GbE family
+
+# PCI Ethernet NICs that use the common MII bus controller code.
+# NOTE: Be sure to keep the 'device miibus' line in order to use these NICs!
+device		miibus		# MII bus support
+device		bce		# Broadcom BCM5706/BCM5708 Gigabit Ethernet
+device		bge		# Broadcom BCM570xx Gigabit Ethernet
+
+# Pseudo devices.
+device		loop		# Network loopback
+device		random		# Entropy device
+device          rdrand_rng              # Intel Bull Mountain RNG
+device		ether		# Ethernet support
+device		vlan		# 802.1Q VLAN support
+device		pty		# BSD-style compatibility pseudo ttys
+device		md		# Memory "disks"
+device		firmware	# firmware assist module
+
+device		bpf		# Berkeley packet filter
+
+# Virtual machine support
+device		virtio
+device		virtio_balloon
+device		virtio_blk
+device		virtio_pci
+device		virtio_scsi
+device		vtnet
+
+# USB support
+options 	USB_DEBUG	# enable debug msgs
+device		uhci		# UHCI PCI->USB interface
+device		ohci		# OHCI PCI->USB interface
+device		ehci		# EHCI PCI->USB interface (USB 2.0)
+device		xhci		# XHCI PCI->USB interface (USB 3.0)
+device		usb		# USB Bus (required)
+device		uhid		# "Human Interface Devices"
+device		ukbd		# Keyboard
+device		umass		# Disks/Mass storage - Requires scbus and da
+device		ums		# Mouse
+
+# System management options
+device		ipmi		# Intelligent Platform Management Interface
+device		smbios		# System Management BIOS
+device		tpm		# Trusted Platform Module
+device		ichwd		# Intel ICH watchdog timer
+device		amdsbwd		# AMD SB7xx watchdog timer
+device		coretemp	# On-die temperature sensor, Intel
+device		amdtemp		# On-die temperature sensor, AMD
+device		cpuctl		# CPU control pseudo-device
+device		hwpmc		# Hardware performance-monitoring counters
+device		smbus		# System management bus
+device		ichsmb		# Intel ICHx SMBus controller
+device		amdsmb		# AMD 8111 SMBus controller
+device		smb		# User access to SMBus devices
+
+# In-kernel cryptography
+device		crypto		# Software/hardware crypto subsystem
+device		cryptodev
+device		aesni		# Intel AES instructions
+
+# Network options
+#options		IPSEC
+options		IPFIREWALL	# Kernel firewall, traditional FreeBSD flavor
+options		IPFIREWALL_DEFAULT_TO_ACCEPT
+options		ACCEPT_FILTER_DATA
+options		ACCEPT_FILTER_DNS
+options		ACCEPT_FILTER_HTTP
+#device		netmap
+
+# Random crap that would get auto-loaded by devd(8) anyway
+device		ioat
